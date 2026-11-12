@@ -70,13 +70,19 @@ def _prep_mask(mask):
 
 
 def load_figshare(mat_dir):
-    """Read Figshare .mat (MATLAB v7.3 / HDF5) files. Needs h5py (pre-installed on Colab)."""
+    """Read Figshare .mat (MATLAB v7.3 / HDF5) files from mat_dir and its subfolders.
+
+    Works with the official download as-is (four 'brainTumorDataPublic_*' folders);
+    files without a 'cjdata' struct, such as cvind.mat, are skipped.
+    """
     import h5py
+    paths = sorted(os.path.join(root, n) for root, _, names in os.walk(mat_dir)
+                   for n in names if n.endswith(".mat"))
     images, masks, labels, patients = [], [], [], []
-    for name in sorted(os.listdir(mat_dir)):
-        if not name.endswith(".mat"):
-            continue
-        with h5py.File(os.path.join(mat_dir, name), "r") as f:
+    for path in paths:
+        with h5py.File(path, "r") as f:
+            if "cjdata" not in f:
+                continue
             d = f["cjdata"]
             img = np.array(d["image"]).T                  # MATLAB stores arrays transposed
             mask = np.array(d["tumorMask"]).T

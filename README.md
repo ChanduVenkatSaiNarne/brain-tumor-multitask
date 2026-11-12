@@ -28,7 +28,7 @@ Sharing the encoder lets the mask task guide the classifier towards the tumour r
 | Glioma | 1,426 |
 | Pituitary | 930 |
 
-Download: <https://doi.org/10.6084/m9.figshare.1512427>. Unzip all `.mat` files into one folder, for example `data/figshare_mat/`.
+Download: <https://doi.org/10.6084/m9.figshare.1512427>. Unzip the four zip files anywhere (for example `data/figshare/`); the script searches subfolders and skips `cvind.mat`.
 
 Every slice contains a tumour, so the model has **no "no tumour" class**.
 
@@ -38,9 +38,9 @@ You can also use your own data: image and mask folders with matching filenames p
 
 ```bash
 pip install -r requirements.txt
-python train_tumor.py --figshare-dir data/figshare_mat --out models
+python train_tumor.py --figshare-dir data/figshare --out models
 # quick check first:
-python train_tumor.py --figshare-dir data/figshare_mat --out models --epochs 2
+python train_tumor.py --figshare-dir data/figshare --out models --epochs 2
 ```
 
 | Setting | Value |
