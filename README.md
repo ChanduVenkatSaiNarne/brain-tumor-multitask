@@ -51,6 +51,16 @@ python train_tumor.py --figshare-dir data/figshare --out models --epochs 2
 | Augmentation | Left–right flip, small brightness/contrast changes |
 | Batch size | 8 (use `--batch 4` if GPU memory is low) |
 
+## Run in Google Colab
+
+Open `colab_train_tumor.ipynb` in Colab (**File → Open notebook → GitHub**, tick *Include private repos*, choose this repo), set **Runtime → T4 GPU**, and run the cells in order. The notebook:
+
+1. checks the GPU and mounts Google Drive (results are saved there)
+2. clones this repo (uses a `GITHUB_TOKEN` Colab secret while the repo is private)
+3. downloads and unzips the Figshare data (or uses a zip you put on Drive)
+4. runs a 2-epoch test, then full training
+5. shows test results, training curves and example predictions on test patients
+
 ## Outputs
 
 - `models/unet_tumor_multitask_best.keras`: best model
