@@ -30,7 +30,7 @@ Two models, chosen with `--arch`:
 | Mask loss | BCE + **per-slice** soft Dice (the same way the test Dice is measured) |
 | Type loss | Cross-entropy with class weights (meningioma is the smallest class) and label smoothing 0.05; weight 0.5 |
 | Prediction | Average of the slice and its mirror image (test-time augmentation); keep the largest tumour region |
-| Parameters | ≈ 13 M |
+| Parameters | printed at the start of training (encoder ≈ 10 M + U-Net++ decoder) |
 
 **v1 (baseline): multi-task U-Net trained from scratch** (`--arch unet`)
 
