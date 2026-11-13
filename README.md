@@ -79,6 +79,33 @@ Open `colab_train_tumor.ipynb` in Colab (*File → Open notebook → GitHub*, ti
 - `history_tumor.csv`: loss, Dice and accuracy per epoch
 - `test_results_tumor.json`: **test** Dice (overall and per type), accuracy, macro-F1, confusion matrix, test patient IDs
 
+## Results (held-out test set)
+
+Trained on a Colab T4 GPU (about 27 s per epoch). Early stopping fired at epoch 82, and the best model is the one with the lowest validation loss. Test set: **35 patients, 454 slices**, none of them seen in training or validation.
+
+| | Overall | Meningioma | Glioma | Pituitary |
+|---|---|---|---|---|
+| Tumour mask Dice | **0.740** ± 0.294 | 0.858 | 0.590 | 0.875 |
+| Type recall (sensitivity) | | 0.855 (71/83) | 0.933 (196/210) | 0.988 (159/161) |
+| Type precision | | 0.826 (71/86) | 0.942 (196/208) | 0.994 (159/160) |
+
+Type accuracy **0.938**, macro-F1 **0.923**.
+
+Confusion matrix (rows = true type, columns = predicted type):
+
+| | Meningioma | Glioma | Pituitary |
+|---|---|---|---|
+| **Meningioma** | 71 | 12 | 0 |
+| **Glioma** | 13 | 196 | 1 |
+| **Pituitary** | 2 | 0 | 159 |
+
+What this shows:
+- **Pituitary** tumours are almost always recognised. They sit in a fixed place (the sella) and have a compact shape.
+- Most errors are **meningioma vs glioma** (25 of 28 misclassified slices).
+- **Glioma outlines are the hardest** (Dice 0.59). Gliomas grow into the surrounding brain and have unclear edges on T1-contrast MRI, so the expert outline itself is harder to reproduce.
+- The large spread (± 0.29) comes from small tumour areas on edge slices, where a few pixels of error give a very low Dice.
+- Training Dice reached 0.94 while test Dice is 0.74, so outline quality is limited by overfitting on about 2,150 training slices. The next step is a pretrained encoder with stronger augmentation, evaluated on the same patient split.
+
 ## Note on results
 
 Many papers on this dataset report very high accuracy after splitting **by slice**, so slices from one patient appear in both training and test sets. This project splits **by patient**, so scores are likely lower but give a fairer estimate for new patients.
