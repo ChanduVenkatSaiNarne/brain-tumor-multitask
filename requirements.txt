@@ -1,5 +1,7 @@
-tensorflow>=2.13
+# Install PyTorch FIRST with GPU support (see README / setup_windows.ps1), then:
 numpy
 opencv-python
 scikit-learn
 h5py
+pandas
+matplotlib

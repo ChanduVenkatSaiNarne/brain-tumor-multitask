@@ -1,0 +1,32 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "1. Quick test (2 epochs)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/train_tumor.py",
+      "args": ["--figshare-dir", "${userHome}/Downloads/1512427", "--out", "test_run", "--epochs", "2"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "2. Full training",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/train_tumor.py",
+      "args": ["--figshare-dir", "${userHome}/Downloads/1512427", "--out", "models"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "3. Full training (batch 4, low GPU memory)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/train_tumor.py",
+      "args": ["--figshare-dir", "${userHome}/Downloads/1512427", "--out", "models", "--batch", "4"],
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ]
+}

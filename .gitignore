@@ -1,6 +1,9 @@
 data/
 models/
+test_run/
 *.mat
+*.pt
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+.venv/
