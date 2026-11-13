@@ -8,22 +8,38 @@ One PyTorch model that **outlines the tumour** and **predicts its type** on 2D b
 
 | File | Purpose |
 |---|---|
-| `model.py` | Multi-task U-Net (shared encoder + segmentation head + classification head) |
+| `model.py` | v2 pretrained U-Net++ and v1 multi-task U-Net; checkpoint loading; prediction with flip TTA |
 | `data_utils.py` | Loading Figshare `.mat` files or your own images, patient-level split, metrics |
 | `train_tumor.py` | Training and test evaluation |
 | `colab_train_tumor.ipynb` | Run everything in Google Colab |
 | `setup_windows.ps1` | One-time Windows setup (virtual environment + PyTorch with GPU) |
 | `.vscode/` | Ready-made VS Code run configurations |
 
-## Model
+## Models
+
+Two models, chosen with `--arch`:
+
+**v2 (default): U-Net++ on a pretrained EfficientNet-B3** (`--arch unetplusplus --encoder efficientnet-b3`)
 
 | Part | Details |
 |---|---|
-| Input | 1 × 256 × 256 MRI slice, scaled to [0, 1] per image |
+| Input | 1 × 256 × 256 MRI slice, robust 0.5–99.5 percentile scaling, then ImageNet mean/std |
+| Encoder | EfficientNet-B3 pretrained on ImageNet (first layer adapted to 1 channel) |
+| Segmentation decoder | U-Net++: nested, densely connected skip paths → 1 × 1 conv → tumour mask |
+| Classification head | Global average pool on the deepest encoder features → dropout 0.4 → linear 3 |
+| Mask loss | BCE + **per-slice** soft Dice (the same way the test Dice is measured) |
+| Type loss | Cross-entropy with class weights (meningioma is the smallest class) and label smoothing 0.05; weight 0.5 |
+| Prediction | Average of the slice and its mirror image (test-time augmentation); keep the largest tumour region |
+| Parameters | ≈ 13 M |
+
+**v1 (baseline): multi-task U-Net trained from scratch** (`--arch unet`)
+
+| Part | Details |
+|---|---|
 | Shared encoder | 4 conv blocks (2 × [3×3 conv → BatchNorm → ReLU]) with 2×2 max-pool; 32 → 256 channels |
 | Bottleneck | Conv block, 512 channels at 16 × 16, dropout 0.3 |
-| Segmentation head | 4 × [2×2 transposed conv → concat skip → conv block] → 1×1 conv → tumour mask; loss **BCE + Dice** |
-| Classification head | Global average pool → linear 128 + ReLU → dropout 0.4 → linear 3; loss **cross-entropy** (weight 0.5) |
+| Segmentation head | 4 × [2×2 transposed conv → concat skip → conv block] → 1×1 conv → tumour mask |
+| Classification head | Global average pool → linear 128 + ReLU → dropout 0.4 → linear 3 |
 | Parameters | ≈ 7.83 M |
 
 ## Data
@@ -61,17 +77,20 @@ python train_tumor.py --figshare-dir "$HOME\Downloads\1512427" --out models
 
 Open `colab_train_tumor.ipynb` in Colab (*File → Open notebook → GitHub*, tick *Include private repos*), choose **Runtime → T4 GPU**, and run the cells in order. While the repo is private, add a read-only GitHub token as a Colab secret named `GITHUB_TOKEN`.
 
-## Training settings
+## Training settings (v2)
 
 | Setting | Value |
 |---|---|
-| Split | **70 / 15 / 15 by patient**: no patient appears in more than one split |
-| Optimiser | Adam, learning rate 1e-4, halved when validation loss plateaus (patience 8) |
-| Epochs | Up to 150, early stopping after 20 epochs without improvement |
-| Batch size | 8 |
-| Augmentation | Left–right flip (image + mask), brightness ±0.1, contrast 0.9–1.1 |
+| Split | **70 / 15 / 15 by patient**: no patient appears in more than one split (same split as v1) |
+| Optimiser | AdamW, one-cycle learning rate up to 3e-4, weight decay 1e-4, gradient clipping |
+| Epochs | Up to 80, early stopping after 20 epochs without improvement |
+| Model selection | Best average of validation Dice and validation accuracy |
+| Batch size | 16 |
+| Augmentation | Flip; rotation ±15°; zoom 0.85–1.15; shift ±8 %; gamma; brightness and contrast; light noise |
 | Mixed precision | On when a GPU is used |
 | Seed | 42 |
+
+v1 used Adam 1e-4, batch 8, flips plus brightness/contrast only, and selection by validation loss.
 
 ## Outputs (in `--out`, default `models/`)
 
@@ -79,7 +98,7 @@ Open `colab_train_tumor.ipynb` in Colab (*File → Open notebook → GitHub*, ti
 - `history_tumor.csv`: loss, Dice and accuracy per epoch
 - `test_results_tumor.json`: **test** Dice (overall and per type), accuracy, macro-F1, confusion matrix, test patient IDs
 
-## Results (held-out test set)
+## Results: v1 baseline (held-out test set)
 
 Trained on a Colab T4 GPU (about 27 s per epoch). Early stopping fired at epoch 82, and the best model is the one with the lowest validation loss. Test set: **35 patients, 454 slices**, none of them seen in training or validation.
 
@@ -104,7 +123,7 @@ What this shows:
 - Most errors are **meningioma vs glioma** (25 of 28 misclassified slices).
 - **Glioma outlines are the hardest** (Dice 0.59). Gliomas grow into the surrounding brain and have unclear edges on T1-contrast MRI, so the expert outline itself is harder to reproduce.
 - The large spread (± 0.29) comes from small tumour areas on edge slices, where a few pixels of error give a very low Dice.
-- Training Dice reached 0.94 while test Dice is 0.74, so outline quality is limited by overfitting on about 2,150 training slices. The next step is a pretrained encoder with stronger augmentation, evaluated on the same patient split.
+- Training Dice reached 0.94 while test Dice is 0.74, so outline quality is limited by overfitting on about 2,150 training slices. v2 (pretrained encoder, stronger augmentation, per-slice Dice loss) targets this gap; its results will be added here, measured on the same test patients.
 
 ## Note on results
 

@@ -10,23 +10,24 @@ IMG_SIZE = 256
 FIGSHARE_CLASSES = ["meningioma", "glioma", "pituitary"]
 
 
-def _prep_image(img):
+def _prep_image(img, size=IMG_SIZE):
     img = img.astype(np.float32)
-    img = (img - img.min()) / (img.max() - img.min() + 1e-8)          # per-image min-max to [0, 1]
-    return cv2.resize(img, (IMG_SIZE, IMG_SIZE), interpolation=cv2.INTER_AREA)
+    lo, hi = np.percentile(img, [0.5, 99.5])                           # robust to a few very bright pixels
+    img = np.clip((img - lo) / (hi - lo + 1e-8), 0, 1)
+    return cv2.resize(img, (size, size), interpolation=cv2.INTER_AREA)
 
 
-def _prep_mask(mask):
-    mask = cv2.resize(mask.astype(np.uint8), (IMG_SIZE, IMG_SIZE), interpolation=cv2.INTER_NEAREST)
+def _prep_mask(mask, size=IMG_SIZE):
+    mask = cv2.resize(mask.astype(np.uint8), (size, size), interpolation=cv2.INTER_NEAREST)
     return (mask > 0).astype(np.uint8)
 
 
-def load_figshare(mat_dir):
+def load_figshare(mat_dir, size=IMG_SIZE):
     """Read Jun Cheng's Figshare .mat files (MATLAB v7.3 / HDF5) from mat_dir and its subfolders.
 
     Each file holds a 'cjdata' struct with image, tumorMask, label (1-3) and PID.
     Files without 'cjdata' (e.g. cvind.mat) are skipped.
-    Returns images (N, 256, 256) float32, masks (N, 256, 256) uint8, labels (N,), patient IDs (N,), class names.
+    Returns images (N, size, size) float32, masks (N, size, size) uint8, labels (N,), patient IDs (N,), class names.
     """
     import h5py
     paths = sorted(os.path.join(root, n) for root, _, names in os.walk(mat_dir)
@@ -41,8 +42,8 @@ def load_figshare(mat_dir):
             mask = np.array(d["tumorMask"]).T
             label = int(np.array(d["label"]).flatten()[0])
             pid = "".join(chr(int(c)) for c in np.array(d["PID"]).flatten())
-        images.append(_prep_image(img))
-        masks.append(_prep_mask(mask))
+        images.append(_prep_image(img, size))
+        masks.append(_prep_mask(mask, size))
         labels.append(label - 1)                          # 1..3 -> 0..2
         patients.append(pid)
     if not images:
@@ -50,7 +51,7 @@ def load_figshare(mat_dir):
     return (np.stack(images), np.stack(masks), np.array(labels), np.array(patients), FIGSHARE_CLASSES)
 
 
-def load_folders(image_dir, mask_dir, labels_csv):
+def load_folders(image_dir, mask_dir, labels_csv, size=IMG_SIZE):
     """Read PNG/JPG slices + masks; labels and patient IDs come from a CSV (filename,label,patient_id)."""
     with open(labels_csv, newline="") as f:
         rows = list(csv.DictReader(f))
@@ -62,8 +63,8 @@ def load_folders(image_dir, mask_dir, labels_csv):
         if img is None or mask is None:
             print(f"Skipping {r['filename']}: missing image or mask")
             continue
-        images.append(_prep_image(img))
-        masks.append(_prep_mask(mask > 127))
+        images.append(_prep_image(img, size))
+        masks.append(_prep_mask(mask > 127, size))
         labels.append(classes.index(r["label"]))
         patients.append(r["patient_id"])
     return (np.stack(images), np.stack(masks), np.array(labels), np.array(patients), classes)
@@ -76,6 +77,16 @@ def patient_split(patients, seed=42):
     train, rest = next(GroupShuffleSplit(1, test_size=0.30, random_state=seed).split(idx, groups=patients))
     v, t = next(GroupShuffleSplit(1, test_size=0.50, random_state=seed).split(rest, groups=patients[rest]))
     return train, rest[v], rest[t]
+
+
+def keep_largest_component(prob, threshold=0.5):
+    """Remove small stray blobs: keep the largest connected tumour region (each slice has one tumour)."""
+    binary = (prob > threshold).astype(np.uint8)
+    n, lab, stats, _ = cv2.connectedComponentsWithStats(binary, connectivity=8)
+    if n <= 2:
+        return prob
+    biggest = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
+    return np.where(lab == biggest, prob, np.minimum(prob, threshold - 1e-3)).astype(np.float32)
 
 
 def per_image_dice(true_masks, pred_masks, threshold=0.5):
