@@ -9,6 +9,10 @@ One PyTorch model that **outlines the tumour** and **predicts its type** on 2D b
 
 ![Figure 1: pipeline, architecture, training, inference and results](docs/figure1.png)
 
+**Same 6 test slices, v1 (top) vs v2 (bottom).** Expert outline in green, model in red:
+
+![Figure 3: example predictions v1 vs v2](docs/figure3_predictions.png)
+
 ## Files
 
 | File | Purpose |
