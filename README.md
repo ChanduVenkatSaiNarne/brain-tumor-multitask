@@ -98,7 +98,36 @@ v1 used Adam 1e-4, batch 8, flips plus brightness/contrast only, and selection b
 - `history_tumor.csv`: loss, Dice and accuracy per epoch
 - `test_results_tumor.json`: **test** Dice (overall and per type), accuracy, macro-F1, confusion matrix, test patient IDs
 
-## Results: v1 baseline (held-out test set)
+## Results: v2 vs v1 (same held-out test set)
+
+Both models are tested on the **same 35 patients (454 slices)**, which neither model saw during training or model selection.
+
+| Metric | v1: U-Net from scratch | **v2: U-Net++ / EfficientNet-B3** | Change |
+|---|---|---|---|
+| Tumour mask Dice (mean ± SD) | 0.740 ± 0.294 | **0.811 ± 0.232** | +0.071 |
+| Dice, meningioma | 0.858 | **0.913** | +0.055 |
+| Dice, glioma | 0.590 | **0.707** | +0.117 |
+| Dice, pituitary | 0.875 | **0.895** | +0.020 |
+| Type accuracy | 0.938 | **0.952** | +0.014 |
+| Type macro-F1 | 0.923 | **0.938** | +0.015 |
+| Parameters | 7.83 M | 13.63 M | |
+
+v2 confusion matrix (rows = true type, columns = predicted type):
+
+| | Meningioma | Glioma | Pituitary | Recall |
+|---|---|---|---|---|
+| **Meningioma** | 71 | 10 | 2 | 0.855 |
+| **Glioma** | 9 | 200 | 1 | 0.952 |
+| **Pituitary** | 0 | 0 | 161 | 1.000 |
+| **Precision** | 0.888 | 0.952 | 0.982 | |
+
+What changed the result:
+- **The largest gain is on glioma outlines** (+0.12 Dice). The pretrained encoder and stronger augmentation help most on the irregular, poorly defined edges of gliomas.
+- **The spread of per-slice Dice narrowed** (SD 0.29 → 0.23), so there are fewer near-total misses.
+- **All pituitary slices are now correctly typed.** Meningioma vs glioma remains the main confusion (19 of 22 errors).
+- **This is one split of 35 patients,** so differences of about 1–2 points in accuracy are within the uncertainty. Patient-level 5-fold cross-validation is the next step.
+
+## Results: v1 baseline in detail (held-out test set)
 
 Trained on a Colab T4 GPU (about 27 s per epoch). Early stopping fired at epoch 82, and the best model is the one with the lowest validation loss. Test set: **35 patients, 454 slices**, none of them seen in training or validation.
 
@@ -123,7 +152,7 @@ What this shows:
 - Most errors are **meningioma vs glioma** (25 of 28 misclassified slices).
 - **Glioma outlines are the hardest** (Dice 0.59). Gliomas grow into the surrounding brain and have unclear edges on T1-contrast MRI, so the expert outline itself is harder to reproduce.
 - The large spread (± 0.29) comes from small tumour areas on edge slices, where a few pixels of error give a very low Dice.
-- Training Dice reached 0.94 while test Dice is 0.74, so outline quality is limited by overfitting on about 2,150 training slices. v2 (pretrained encoder, stronger augmentation, per-slice Dice loss) targets this gap; its results will be added here, measured on the same test patients.
+- Training Dice reached 0.94 while test Dice is 0.74, so outline quality is limited by overfitting on about 2,150 training slices. v2 (pretrained encoder, stronger augmentation, per-slice Dice loss) was built to close this gap; see the comparison above.
 
 ## Note on results
 
