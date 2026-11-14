@@ -4,6 +4,11 @@ One PyTorch model that **outlines the tumour** and **predicts its type** on 2D b
 
 > ⚠️ Research and education only. Not validated for clinical use.
 
+
+**Paper-style write-up:** [Word](docs/brain-tumor-multitask_paper.docx) · [PDF](docs/brain-tumor-multitask_paper.pdf). It covers the data, the CNN architecture, training, results v1 vs v2, limitations and usage.
+
+![Figure 1: pipeline, architecture, training, inference and results](docs/figure1.png)
+
 ## Files
 
 | File | Purpose |
